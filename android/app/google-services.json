@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "1013004696091",
+    "project_id": "programacion-movil-q2",
+    "storage_bucket": "programacion-movil-q2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1013004696091:android:3467b0eabdac55b83156be",
+        "android_client_info": {
+          "package_name": "com.example.app_clase"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1013004696091-8uc5qqkjqqfcpcfebh93271aspi47qci.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBC0NW88iIJRkgHxjKOODnnQDdGd_JIpr4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1013004696091-8uc5qqkjqqfcpcfebh93271aspi47qci.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1013004696091-0igldh8od3uuc4uio0cre3lh784f9sls.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.appClase"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

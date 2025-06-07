@@ -3,6 +3,12 @@ import 'package:firebase_core/firebase_core.dart';
 import 'auth_service.dart';
 import 'login_page.dart';
 import 'auth_wrapper.dart';
+import 'rick_morty_service.dart';
+import 'character_model.dart';
+import 'character_card.dart';
+import 'category_model.dart';
+import 'category_chip.dart';
+import 'character_detail_popup.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,6 +51,18 @@ class _HomePageState extends State<HomePage>
   double _scale = 1.0;
   final AuthService _authService = AuthService();
 
+  // Variables para la API de Rick and Morty
+  List<Character> characters = [];
+  bool isLoading = false;
+  String errorMessage = '';
+  int currentPage = 1;
+  bool hasMorePages = true;
+
+  // Variables para categorías
+  String selectedCategoryId = 'all';
+  CharacterCategory get selectedCategory =>
+      CategoryData.getCategoryById(selectedCategoryId);
+
   @override
   void initState() {
     super.initState();
@@ -54,12 +72,87 @@ class _HomePageState extends State<HomePage>
         _currentIndex = _tabController.index;
       });
     });
+    // Cargar personajes al iniciar
+    _loadCharacters();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  // Método para cargar personajes desde la API según la categoría
+  Future<void> _loadCharacters({bool loadMore = false}) async {
+    if (isLoading) return;
+
+    setState(() {
+      isLoading = true;
+      if (!loadMore) {
+        characters.clear();
+        currentPage = 1;
+        hasMorePages = true;
+      }
+      errorMessage = '';
+    });
+
+    try {
+      final response = await selectedCategory.apiCall(page: currentPage);
+
+      setState(() {
+        if (loadMore) {
+          characters.addAll(response.results);
+        } else {
+          characters = response.results;
+        }
+        hasMorePages = response.next != null;
+        if (loadMore) currentPage++;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+        errorMessage = e.toString();
+      });
+    }
+  }
+
+  // Método para cambiar de categoría
+  void _selectCategory(String categoryId) {
+    if (selectedCategoryId != categoryId) {
+      setState(() {
+        selectedCategoryId = categoryId;
+      });
+      _loadCharacters();
+    }
+  }
+
+  // Método para buscar personajes
+  Future<void> _searchCharacters(String query) async {
+    if (query.isEmpty) {
+      _loadCharacters();
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+      errorMessage = '';
+    });
+
+    try {
+      final response = await RickMortyService.searchCharacters(query);
+      setState(() {
+        characters = response.results;
+        isLoading = false;
+        hasMorePages = false; // No paginación en búsqueda
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+        errorMessage = e.toString();
+        characters.clear();
+      });
+    }
   }
 
   void _showSnackBar(
@@ -94,7 +187,7 @@ class _HomePageState extends State<HomePage>
           controller: _tabController,
           tabs: const [
             Tab(icon: Icon(Icons.home), text: 'Inicio'),
-            Tab(icon: Icon(Icons.favorite), text: 'Favoritos'),
+            Tab(icon: Icon(Icons.tv), text: 'Rick & Morty'),
             Tab(icon: Icon(Icons.settings), text: 'Ajustes'),
           ],
         ),
@@ -105,7 +198,6 @@ class _HomePageState extends State<HomePage>
               _showSnackBar(context, 'Notificaciones presionadas');
             },
           ),
-          // Botón de logout
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
@@ -143,8 +235,8 @@ class _HomePageState extends State<HomePage>
               },
             ),
             ListTile(
-              leading: const Icon(Icons.favorite),
-              title: const Text('Favoritos'),
+              leading: const Icon(Icons.tv),
+              title: const Text('Rick & Morty'),
               onTap: () {
                 _tabController.animateTo(1);
                 Navigator.pop(context);
@@ -242,56 +334,99 @@ class _HomePageState extends State<HomePage>
               ],
             ),
           ),
-          // Segundo tab - Favoritos (mantienes tu contenido actual)
-          ListView(
-            padding: const EdgeInsets.all(16.0),
+
+          // Segundo tab - Rick & Morty API con categorías
+          Column(
             children: [
-              CustomCard(
-                title: 'Pokemones Hielo',
-                description: 'Favoritos de tipo Hielo',
-                onPressed: () {
-                  _showSnackBar(
-                    context,
-                    'Tarjeta 1 presionada',
-                    backgroundColor: Colors.lightBlue,
-                  );
-                },
-                useIcon: true,
-                icon: Icons.ac_unit,
-                iconColor: Colors.lightBlue,
+              // Barra de búsqueda
+              Container(
+                padding: const EdgeInsets.all(16),
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Buscar personajes...',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.refresh),
+                      onPressed: () => _loadCharacters(),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey.shade100,
+                  ),
+                  onSubmitted: _searchCharacters,
+                ),
               ),
-              const SizedBox(height: 16.0),
-              CustomCard(
-                title: 'Pokemones tipo Fuego',
-                description: 'Favoritos de tipo Fuego',
-                onPressed: () {
-                  _showSnackBar(
-                    context,
-                    'Tarjeta 2 presionada',
-                    backgroundColor: Colors.orange,
-                  );
-                },
-                useIcon: true,
-                icon: Icons.fire_extinguisher,
-                iconColor: Colors.red,
+
+              // Chips de categorías
+              Container(
+                height: 60,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: CategoryData.categories.length,
+                  itemBuilder: (context, index) {
+                    final category = CategoryData.categories[index];
+                    return CategoryChip(
+                      category: category,
+                      isSelected: selectedCategoryId == category.id,
+                      onTap: () => _selectCategory(category.id),
+                    );
+                  },
+                ),
               ),
-              const SizedBox(height: 16.0),
-              CustomCard(
-                title: 'Pokemones tipo Agua',
-                description: 'Favoritos de tipo Agua',
-                onPressed: () {
-                  _showSnackBar(
-                    context,
-                    'Tarjeta 3 presionada',
-                    backgroundColor: Colors.blue,
-                  );
-                },
-                useIcon: true,
-                icon: Icons.water,
-                iconColor: Colors.blue,
+
+              // Header de categoría seleccionada
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: selectedCategory.color.withOpacity(0.1),
+                  border: Border(
+                    bottom: BorderSide(
+                      color: selectedCategory.color.withOpacity(0.3),
+                      width: 2,
+                    ),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      selectedCategory.icon,
+                      color: selectedCategory.color,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      selectedCategory.description,
+                      style: TextStyle(
+                        color: selectedCategory.color,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (!isLoading && characters.isNotEmpty)
+                      Text(
+                        '${characters.length} personajes',
+                        style: TextStyle(
+                          color: selectedCategory.color.withOpacity(0.7),
+                          fontSize: 12,
+                        ),
+                      ),
+                  ],
+                ),
               ),
+
+              // Lista de personajes
+              Expanded(child: _buildCharactersList()),
             ],
           ),
+
           // Tercer tab - Ajustes
           Center(
             child: Column(
@@ -317,15 +452,133 @@ class _HomePageState extends State<HomePage>
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showSnackBar(
-            context,
-            'FloatingActionButton presionado en Tab: ${_tabController.index + 1}',
+      floatingActionButton:
+          _currentIndex == 1
+              ? FloatingActionButton(
+                onPressed: () {
+                  if (hasMorePages && !isLoading) {
+                    currentPage++;
+                    _loadCharacters(loadMore: true);
+                  } else {
+                    _showSnackBar(
+                      context,
+                      hasMorePages ? 'Cargando...' : 'No hay más personajes',
+                      backgroundColor:
+                          hasMorePages ? Colors.blue : Colors.orange,
+                    );
+                  }
+                },
+                backgroundColor: selectedCategory.color,
+                child:
+                    isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Icon(Icons.add),
+                tooltip: 'Cargar más personajes',
+              )
+              : FloatingActionButton(
+                onPressed: () {
+                  _showSnackBar(
+                    context,
+                    'FloatingActionButton presionado en Tab: ${_tabController.index + 1}',
+                  );
+                },
+                child: const Icon(Icons.add),
+                tooltip: 'Agregar',
+              ),
+    );
+  }
+
+  Widget _buildCharactersList() {
+    if (isLoading && characters.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: selectedCategory.color),
+            const SizedBox(height: 16),
+            Text(
+              'Cargando ${selectedCategory.name.toLowerCase()}...',
+              style: TextStyle(color: selectedCategory.color),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (errorMessage.isNotEmpty && characters.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              'Error al cargar ${selectedCategory.name.toLowerCase()}',
+              style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              errorMessage,
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => _loadCharacters(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: selectedCategory.color,
+              ),
+              child: const Text('Reintentar'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (characters.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(selectedCategory.icon, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              'No se encontraron ${selectedCategory.name.toLowerCase()}',
+              style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => _loadCharacters(),
+      color: selectedCategory.color,
+      child: ListView.builder(
+        itemCount: characters.length + (isLoading ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == characters.length) {
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Center(
+                child: CircularProgressIndicator(color: selectedCategory.color),
+              ),
+            );
+          }
+
+          final character = characters[index];
+          return CharacterCard(
+            character: character,
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (BuildContext context) {
+                  return CharacterDetailPopup(character: character);
+                },
+              );
+            },
           );
         },
-        child: const Icon(Icons.add),
-        tooltip: 'Agregar',
       ),
     );
   }

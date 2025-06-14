@@ -9,6 +9,8 @@ import 'character_card.dart';
 import 'category_model.dart';
 import 'category_chip.dart';
 import 'character_detail_popup.dart';
+import 'favorites_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -97,18 +99,43 @@ class _HomePageState extends State<HomePage>
     });
 
     try {
-      final response = await selectedCategory.apiCall(page: currentPage);
+      // Si es la categoría de favoritos, usar el servicio de favoritos
+      if (selectedCategory.isFavorites) {
+        final favoriteCharacters = await FavoritesService.getFavorites();
+        setState(() {
+          characters = favoriteCharacters;
+          hasMorePages = false; // Los favoritos no tienen paginación
+          isLoading = false;
+        });
+      } else if (selectedCategory.apiCall != null) {
+        // Usar la API normal para otras categorías (verificamos que no sea null)
+        final response = await selectedCategory.apiCall!(page: currentPage);
 
-      setState(() {
-        if (loadMore) {
-          characters.addAll(response.results);
+        // Verificar que response no sea null
+        if (response != null && response.results != null) {
+          setState(() {
+            if (loadMore) {
+              characters.addAll(response.results);
+            } else {
+              characters = response.results;
+            }
+            hasMorePages = response.next != null;
+            if (loadMore) currentPage++;
+            isLoading = false;
+          });
         } else {
-          characters = response.results;
+          setState(() {
+            isLoading = false;
+            errorMessage = 'No se recibieron datos del servidor';
+          });
         }
-        hasMorePages = response.next != null;
-        if (loadMore) currentPage++;
-        isLoading = false;
-      });
+      } else {
+        // Si no hay apiCall ni es favoritos, mostrar error
+        setState(() {
+          isLoading = false;
+          errorMessage = 'No se puede cargar esta categoría';
+        });
+      }
     } catch (e) {
       setState(() {
         isLoading = false;
@@ -141,16 +168,26 @@ class _HomePageState extends State<HomePage>
 
     try {
       final response = await RickMortyService.searchCharacters(query);
-      setState(() {
-        characters = response.results;
-        isLoading = false;
-        hasMorePages = false; // No paginación en búsqueda
-      });
+
+      // Verificar que response y results no sean null
+      if (response != null && response.results != null) {
+        setState(() {
+          characters = response.results;
+          isLoading = false;
+          hasMorePages = false; // No paginación en búsqueda
+        });
+      } else {
+        setState(() {
+          isLoading = false;
+          errorMessage = 'No se encontraron resultados';
+          characters = [];
+        });
+      }
     } catch (e) {
       setState(() {
         isLoading = false;
         errorMessage = e.toString();
-        characters.clear();
+        characters = [];
       });
     }
   }

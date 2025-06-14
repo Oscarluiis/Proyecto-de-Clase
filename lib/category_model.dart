@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'rick_morty_service.dart';
 import 'character_model.dart';
+import 'favorites_service.dart';
 
 class CharacterCategory {
   final String id;
@@ -8,7 +9,9 @@ class CharacterCategory {
   final String description;
   final IconData icon;
   final Color color;
-  final Future<ApiResponse> Function({int page}) apiCall;
+  final Future<ApiResponse>? Function({int page})? apiCall;
+  final Future<List<Character>>? Function()? favoritesCall;
+  final bool isFavorites;
 
   const CharacterCategory({
     required this.id,
@@ -16,7 +19,9 @@ class CharacterCategory {
     required this.description,
     required this.icon,
     required this.color,
-    required this.apiCall,
+    this.apiCall,
+    this.favoritesCall,
+    this.isFavorites = false,
   });
 }
 
@@ -31,10 +36,19 @@ class CategoryData {
       apiCall: RickMortyService.getAllCharacters,
     ),
     CharacterCategory(
+      id: 'favorites',
+      name: 'Favoritos',
+      description: 'Tus personajes favoritos',
+      icon: Icons.favorite,
+      color: Colors.red,
+      favoritesCall: FavoritesService.getFavorites,
+      isFavorites: true,
+    ),
+    CharacterCategory(
       id: 'alive',
       name: 'Vivos',
       description: 'Personajes vivos',
-      icon: Icons.favorite,
+      icon: Icons.favorite_border,
       color: Colors.green,
       apiCall: RickMortyService.getAliveCharacters,
     ),
@@ -43,7 +57,7 @@ class CategoryData {
       name: 'Muertos',
       description: 'Personajes muertos',
       icon: Icons.heart_broken,
-      color: Colors.red,
+      color: Colors.grey,
       apiCall: RickMortyService.getDeadCharacters,
     ),
     CharacterCategory(

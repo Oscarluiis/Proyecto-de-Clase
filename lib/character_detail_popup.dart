@@ -1,14 +1,86 @@
 import 'package:flutter/material.dart';
 import 'character_model.dart';
+import 'favorites_service.dart';
 
-class CharacterDetailPopup extends StatelessWidget {
+class CharacterDetailPopup extends StatefulWidget {
   final Character character;
 
   const CharacterDetailPopup({Key? key, required this.character})
     : super(key: key);
 
+  @override
+  State<CharacterDetailPopup> createState() => _CharacterDetailPopupState();
+}
+
+class _CharacterDetailPopupState extends State<CharacterDetailPopup> {
+  bool isFavorite = false;
+  bool isLoadingFavorite = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkIfFavorite();
+  }
+
+  Future<void> _checkIfFavorite() async {
+    try {
+      final favorite = await FavoritesService.isFavorite(widget.character.id);
+      if (mounted) {
+        setState(() {
+          isFavorite = favorite;
+        });
+      }
+    } catch (e) {
+      print('Error checking favorite status: $e');
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (isLoadingFavorite) return;
+
+    setState(() {
+      isLoadingFavorite = true;
+    });
+
+    try {
+      final newFavoriteStatus = await FavoritesService.toggleFavorite(
+        widget.character,
+      );
+
+      if (mounted) {
+        setState(() {
+          isFavorite = newFavoriteStatus;
+          isLoadingFavorite = false;
+        });
+
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              newFavoriteStatus
+                  ? '${widget.character.name} añadido a favoritos ❤️'
+                  : '${widget.character.name} eliminado de favoritos 💔',
+            ),
+            backgroundColor: newFavoriteStatus ? Colors.green : Colors.orange,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          isLoadingFavorite = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Color _getStatusColor() {
-    switch (character.status.toLowerCase()) {
+    switch (widget.character.status.toLowerCase()) {
       case 'alive':
         return Colors.green;
       case 'dead':
@@ -19,7 +91,7 @@ class CharacterDetailPopup extends StatelessWidget {
   }
 
   IconData _getGenderIcon() {
-    switch (character.gender.toLowerCase()) {
+    switch (widget.character.gender.toLowerCase()) {
       case 'male':
         return Icons.male;
       case 'female':
@@ -72,6 +144,33 @@ class CharacterDetailPopup extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // Botón de favorito
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: IconButton(
+                      onPressed: _toggleFavorite,
+                      icon:
+                          isLoadingFavorite
+                              ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                              : Icon(
+                                isFavorite
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: Colors.white,
+                              ),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.black.withOpacity(0.3),
+                      ),
+                    ),
+                  ),
                   // Contenido del header
                   Center(
                     child: Column(
@@ -79,10 +178,10 @@ class CharacterDetailPopup extends StatelessWidget {
                       children: [
                         // Imagen del personaje
                         Hero(
-                          tag: 'character_${character.id}',
+                          tag: 'character_${widget.character.id}',
                           child: ClipOval(
                             child: Image.network(
-                              character.image,
+                              widget.character.image,
                               width: 100,
                               height: 100,
                               fit: BoxFit.cover,
@@ -112,7 +211,7 @@ class CharacterDetailPopup extends StatelessWidget {
                         const SizedBox(height: 12),
                         // Nombre del personaje
                         Text(
-                          character.name,
+                          widget.character.name,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 24,
@@ -139,7 +238,7 @@ class CharacterDetailPopup extends StatelessWidget {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              character.status,
+                              widget.character.status,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
@@ -165,10 +264,22 @@ class CharacterDetailPopup extends StatelessWidget {
                     // Información básica
                     _buildSectionTitle('Información Básica'),
                     const SizedBox(height: 12),
-                    _buildInfoRow(Icons.person, 'Especie', character.species),
-                    _buildInfoRow(_getGenderIcon(), 'Género', character.gender),
-                    if (character.type.isNotEmpty)
-                      _buildInfoRow(Icons.category, 'Tipo', character.type),
+                    _buildInfoRow(
+                      Icons.person,
+                      'Especie',
+                      widget.character.species,
+                    ),
+                    _buildInfoRow(
+                      _getGenderIcon(),
+                      'Género',
+                      widget.character.gender,
+                    ),
+                    if (widget.character.type.isNotEmpty)
+                      _buildInfoRow(
+                        Icons.category,
+                        'Tipo',
+                        widget.character.type,
+                      ),
 
                     const SizedBox(height: 20),
 
@@ -177,14 +288,14 @@ class CharacterDetailPopup extends StatelessWidget {
                     const SizedBox(height: 12),
                     _buildLocationCard(
                       'Ubicación Actual',
-                      character.location.name,
+                      widget.character.location.name,
                       Icons.location_on,
                       Colors.blue,
                     ),
                     const SizedBox(height: 8),
                     _buildLocationCard(
                       'Origen',
-                      character.origin.name,
+                      widget.character.origin.name,
                       Icons.home,
                       Colors.green,
                     ),
@@ -206,7 +317,7 @@ class CharacterDetailPopup extends StatelessWidget {
                           Icon(Icons.tag, color: Colors.grey.shade600),
                           const SizedBox(width: 8),
                           Text(
-                            'ID del Personaje: #${character.id}',
+                            'ID del Personaje: #${widget.character.id}',
                             style: TextStyle(
                               fontWeight: FontWeight.w500,
                               color: Colors.grey.shade700,
@@ -227,21 +338,28 @@ class CharacterDetailPopup extends StatelessWidget {
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '${character.name} añadido a favoritos',
-                            ),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.favorite),
-                      label: const Text('Favorito'),
+                      onPressed: isLoadingFavorite ? null : _toggleFavorite,
+                      icon:
+                          isLoadingFavorite
+                              ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                              : Icon(
+                                isFavorite
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                              ),
+                      label: Text(
+                        isFavorite ? 'Quitar Favorito' : 'Añadir Favorito',
+                      ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
+                        backgroundColor:
+                            isFavorite ? Colors.orange : Colors.red,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
@@ -258,7 +376,7 @@ class CharacterDetailPopup extends StatelessWidget {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              'Información de ${character.name} compartida',
+                              'Información de ${widget.character.name} compartida',
                             ),
                             backgroundColor: Colors.blue,
                           ),

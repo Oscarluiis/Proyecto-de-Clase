@@ -10,7 +10,10 @@ class FavoritesService {
   static CollectionReference get _favoritesCollection {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Usuario no autenticado');
-    return _firestore.collection('users').doc(user.uid).collection('favorites');
+    return _firestore
+        .collection('personajes')
+        .doc(user.uid)
+        .collection('favoritos');
   }
 
   // Agregar personaje a favoritos

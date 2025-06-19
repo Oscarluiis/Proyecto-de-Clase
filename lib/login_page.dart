@@ -50,7 +50,7 @@ class LoginPage extends StatelessWidget {
 
                   // Título
                   const Text(
-                    'Agenda Personal',
+                    'Rick y Morty App',
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
@@ -62,7 +62,7 @@ class LoginPage extends StatelessWidget {
 
                   // Subtítulo
                   const Text(
-                    'Organiza tu día de manera eficiente',
+                    'Descubre a tus personajes favoritos',
                     style: TextStyle(fontSize: 16, color: Colors.white70),
                     textAlign: TextAlign.center,
                   ),

@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Agenda Personal',
+      title: 'Rick y Morty App',
       theme: ThemeData(
         primarySwatch: Colors.teal,
         visualDensity: VisualDensity.adaptivePlatformDensity,
@@ -324,49 +324,6 @@ class _HomePageState extends State<HomePage>
                 Text(
                   user?.email ?? 'email@example.com',
                   style: const TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-                const SizedBox(height: 30),
-                GestureDetector(
-                  onTap: () {
-                    _showSnackBar(context, 'Contenedor presionado');
-                  },
-                  onDoubleTap: () {
-                    setState(() {
-                      _scale = _scale == 1.0 ? 1.5 : 1.0;
-                    });
-                    _showSnackBar(
-                      context,
-                      'Contenedor escalado: ${_scale == 1.5 ? 'Ampliado' : 'Normal'}',
-                      backgroundColor: Colors.green,
-                    );
-                  },
-                  child: AnimatedScale(
-                    scale: _scale,
-                    duration: const Duration(milliseconds: 300),
-                    child: Container(
-                      width: 200,
-                      height: 200,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        color: Colors.teal[200],
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            spreadRadius: 2,
-                            blurRadius: 5,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.touch_app,
-                          size: 50,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
                 ),
               ],
             ),
